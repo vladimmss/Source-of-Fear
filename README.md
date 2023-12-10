@@ -12,13 +12,13 @@
 
 https://fnafar.com
 
-![img_2.png](img_2.png)
+!https://pic.rutubelist.ru/video/c0/bc/c0bc72891f3614c422c62ea7c1635f13.jpg
 
 2. **One Night At Flumpty's**
 
 https://gamejolt.com/games/onaf/124881
 
-![img_1.png](img_1.png)
+!https://pic.rutubelist.ru/video/a2/0d/a20d427beca4db5322536381260f2552.png?width=900
 
 ## Системные требования
 
