@@ -224,10 +224,15 @@ class Office:
 
         self.clock = pygame.time.Clock()
         self.hours = ['12', '1', '2', '3', '4', '5']
+        self.energy = 100
+        self.change_energy_point = 0
+        self.energy_change_time = 5000
         self.condition = 0
 
-        self.print_message = pygame.USEREVENT + 0
-        pygame.time.set_timer(self.print_message, 50000)
+        self.change_hour = pygame.USEREVENT + 0
+        pygame.time.set_timer(self.change_hour, 50000)
+        self.change_energy = pygame.USEREVENT + 1
+        pygame.time.set_timer(self.change_energy, self.energy_change_time)
 
         self.open_camera_sound = pygame.mixer.Sound('data/change_camera.mp3')
         self.open_camera_sound.set_volume(0.3)
@@ -248,6 +253,7 @@ class Office:
 
     def camera(self):
         running = True
+        self.condition = 4
         pomehi = pygame.mixer.Sound('data/pomehi.mp3')
         pomehi.set_volume(0.3)
 
@@ -265,12 +271,16 @@ class Office:
                 if event.type == pygame.QUIT:
                     running = False
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    self.condition = 4
                     pomehi.stop()
                     self.pause()
-                if event.type == self.print_message:
+                if event.type == self.change_hour:
                     if len(self.hours) > 1:
                         del self.hours[0]
+                    else:
+                        running = False
+                if event.type == self.change_energy:
+                    if self.energy > 0:
+                        self.energy -= 3
                     else:
                         running = False
                 if event.type == pygame.MOUSEBUTTONDOWN and \
@@ -284,6 +294,7 @@ class Office:
                         self.open_camera_sound.play()
                         self.default_office()
             self.current_time()
+            self.current_energy()
             pomehi.play()
             self.clock.tick(60)
             self.fill_background()
@@ -293,6 +304,7 @@ class Office:
 
     def default_office(self):
         running = True
+        self.condition = 1
 
         while running:
 
@@ -321,11 +333,15 @@ class Office:
                     close_door_sound.play()
                     self.door_locked()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    self.condition = 1
                     self.pause()
-                if event.type == self.print_message:
+                if event.type == self.change_hour:
                     if len(self.hours) > 1:
                         del self.hours[0]
+                    else:
+                        running = False
+                if event.type == self.change_energy:
+                    if self.energy > 0:
+                        self.energy -= 1
                     else:
                         running = False
                 if event.type == pygame.MOUSEBUTTONDOWN and \
@@ -335,6 +351,7 @@ class Office:
                     self.camera()
 
             self.current_time()
+            self.current_energy()
             self.fill_tv()
             pygame.display.flip()
             self.clock.tick(60)
@@ -343,6 +360,7 @@ class Office:
 
     def light_office(self):
         running = True
+        self.condition = 2
 
         while running:
 
@@ -364,16 +382,21 @@ class Office:
                     light_off_sound.play()
                     self.default_office()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    self.condition = 2
                     self.pause()
-                if event.type == self.print_message:
+                if event.type == self.change_hour:
                     if len(self.hours) > 1:
                         del self.hours[0]
+                    else:
+                        running = False
+                if event.type == self.change_energy:
+                    if self.energy > 0:
+                        self.energy -= 1
                     else:
                         running = False
 
             self.current_time()
             self.fill_tv()
+            self.current_energy()
             pygame.display.flip()
             self.clock.tick(60)
 
@@ -381,6 +404,7 @@ class Office:
 
     def door_locked(self):
         running = True
+        self.condition = 3
         self.is_door_locked = True
 
         while running:
@@ -388,6 +412,7 @@ class Office:
             bg = load_image('door_locked.jpg')
             bg = pygame.transform.scale(bg, self.size)
             rect = bg.get_rect(topleft=(0, 0))
+            self.energy_change_time = 3000
             self.screen.blit(bg, rect)
 
             open_door_sound = pygame.mixer.Sound('data/open_door.mp3')
@@ -404,11 +429,15 @@ class Office:
                     self.is_door_locked = False
                     self.default_office()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    self.condition = 3
                     self.pause()
-                if event.type == self.print_message:
+                if event.type == self.change_hour:
                     if len(self.hours) > 1:
                         del self.hours[0]
+                    else:
+                        running = False
+                if event.type == self.change_energy:
+                    if self.energy > 0:
+                        self.energy -= 6
                     else:
                         running = False
                 if event.type == pygame.MOUSEBUTTONDOWN and \
@@ -418,6 +447,7 @@ class Office:
                     self.camera()
 
             self.current_time()
+            self.current_energy()
             self.fill_tv()
             pygame.display.flip()
             self.clock.tick(60)
@@ -466,6 +496,7 @@ class Office:
 
             pygame.time.delay(1)
             self.current_time()
+            self.current_energy()
             pygame.display.flip()
             self.clock.tick(60)
 
@@ -480,6 +511,12 @@ class Office:
         font = pygame.font.Font('data/MorfinSans-Regular.ttf', 45)
         text_rendered = font.render(f'Night 1', 1, (255, 0, 0))
         text_rect = text_rendered.get_rect(center=(120, 110))
+        self.screen.blit(text_rendered, text_rect)
+
+    def current_energy(self):
+        font = pygame.font.Font('data/MorfinSans-Regular.ttf', 55)
+        text_rendered = font.render(f'{self.energy} left', 1, (255, 255, 255))
+        text_rect = text_rendered.get_rect(center=(150, 1000))
         self.screen.blit(text_rendered, text_rect)
 
     def end_of_night(self):
