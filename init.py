@@ -1,5 +1,7 @@
 import sys
 import os
+import time
+
 import pygame
 import random
 import wx
@@ -228,6 +230,7 @@ class Office:
         self.change_energy_point = 0
         self.energy_change_time = 1000
         self.condition = 0
+        self.cam_position = 0
 
         self.change_hour = pygame.USEREVENT + 0
         pygame.time.set_timer(self.change_hour, 50000)
@@ -258,10 +261,18 @@ class Office:
         pomehi.set_volume(0.3)
 
         while running:
-            bg = load_image('camera.jpg')
-            bg = pygame.transform.scale(bg, self.size)
-            rect = bg.get_rect(topleft=(0, 0))
-            self.screen.blit(bg, rect)
+            if self.cam_position == 0:
+                bg = load_image('cam1.jpg')
+                bg = pygame.transform.scale(bg, self.size)
+                rect = bg.get_rect(topleft=(0, 0))
+                self.screen.blit(bg, rect)
+                self.cam_position = 0
+            else:
+                bg = load_image('cam2.jpg')
+                bg = pygame.transform.scale(bg, self.size)
+                rect = bg.get_rect(topleft=(0, 0))
+                self.screen.blit(bg, rect)
+                self.cam_position = 1
             back = load_image('back_button.png')
             back = pygame.transform.scale(back, (1300, 70))
             rect = back.get_rect(center=(760, 1000))
@@ -281,7 +292,7 @@ class Office:
                 if event.type == self.change_energy:
                     if self.energy > 0:
                         if self.is_door_locked:
-                            self.energy -= 0.7
+                            self.energy -= 0.6
                         else:
                             self.energy -= 0.4
                     else:
@@ -296,6 +307,19 @@ class Office:
                     else:
                         self.open_camera_sound.play()
                         self.default_office()
+                if event.type == pygame.MOUSEBUTTONDOWN and \
+                        (self.width * 0.893 <= mouse_pos[0] <= self.width * 0.93 and self.height * 0.66 <=
+                         mouse_pos[1] <= self.height * 0.75):
+                    pomehi.set_volume(0.2)
+                    self.open_camera_sound.play()
+                    self.cam_position = 1
+                if event.type == pygame.MOUSEBUTTONDOWN and \
+                        (self.width * 0.79 <= mouse_pos[0] <= self.width * 0.893 and self.height * 0.65 <=
+                         mouse_pos[1] <= self.height * 0.76):
+                    pomehi.set_volume(0.2)
+                    self.open_camera_sound.play()
+                    self.cam_position = 0
+
             self.current_time()
             self.current_energy()
             pomehi.play()
