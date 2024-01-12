@@ -224,9 +224,9 @@ class Office:
 
         self.clock = pygame.time.Clock()
         self.hours = ['12', '1', '2', '3', '4', '5']
-        self.energy = 100
+        self.energy = 100.5
         self.change_energy_point = 0
-        self.energy_change_time = 5000
+        self.energy_change_time = 1000
         self.condition = 0
 
         self.change_hour = pygame.USEREVENT + 0
@@ -280,7 +280,10 @@ class Office:
                         running = False
                 if event.type == self.change_energy:
                     if self.energy > 0:
-                        self.energy -= 3
+                        if self.is_door_locked:
+                            self.energy -= 0.7
+                        else:
+                            self.energy -= 0.4
                     else:
                         running = False
                 if event.type == pygame.MOUSEBUTTONDOWN and \
@@ -341,7 +344,7 @@ class Office:
                         running = False
                 if event.type == self.change_energy:
                     if self.energy > 0:
-                        self.energy -= 1
+                        self.energy -= 0.1
                     else:
                         running = False
                 if event.type == pygame.MOUSEBUTTONDOWN and \
@@ -390,7 +393,7 @@ class Office:
                         running = False
                 if event.type == self.change_energy:
                     if self.energy > 0:
-                        self.energy -= 1
+                        self.energy -= 0.4
                     else:
                         running = False
 
@@ -437,7 +440,7 @@ class Office:
                         running = False
                 if event.type == self.change_energy:
                     if self.energy > 0:
-                        self.energy -= 6
+                        self.energy -= 0.3
                     else:
                         running = False
                 if event.type == pygame.MOUSEBUTTONDOWN and \
@@ -515,7 +518,7 @@ class Office:
 
     def current_energy(self):
         font = pygame.font.Font('data/MorfinSans-Regular.ttf', 55)
-        text_rendered = font.render(f'{self.energy} left', 1, (255, 255, 255))
+        text_rendered = font.render(f'{int(self.energy)} left', 1, (255, 255, 255))
         text_rect = text_rendered.get_rect(center=(150, 1000))
         self.screen.blit(text_rendered, text_rect)
 
