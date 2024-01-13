@@ -2,6 +2,7 @@ import sys
 import os
 import pygame
 import random
+# import screen_brightness_control as sbc
 
 
 def load_image(name, colorkey=None):
@@ -100,6 +101,7 @@ class MainMenu:
                     running = False
 
                 if event.type == pygame.USEREVENT and event.button == new_game_button:
+                    pygame.mixer.music.stop()
                     new_game_menu()
 
                 if event.type == pygame.USEREVENT and event.button == continue_menu_button:
@@ -189,6 +191,8 @@ class MainMenu:
                 if slider.slider_rect.collidepoint(mouse_pos) and mouse_pressed:
                     slider.move(mouse_pos)
                 slider.render(self.screen)
+                pygame.mixer.music.set_volume(round(slider.get_value()) // 100)
+                # sbc.set_brightness(round(slider.get_value()))
 
             pygame.display.flip()
             self.clock.tick(60)
@@ -200,10 +204,6 @@ def new_game_menu():
 
 
 def continue_game_menu():
-    pass
-
-
-def exit_menu():
     pass
 
 
@@ -221,10 +221,24 @@ class Office:
 
         self.clock = pygame.time.Clock()
         self.hours = ['12', '1', '2', '3', '4', '5']
-        self.condition = 0
 
-        self.print_message = pygame.USEREVENT + 0
-        pygame.time.set_timer(self.print_message, 50000)
+        self.energy_counter = 100
+        self.energy_left = 100
+        self.change_energy_point = 0
+        self.energy_change_time = 1000
+
+        self.condition = 0
+        self.cam_position = 1
+
+        self.change_hour = pygame.USEREVENT + 0
+        pygame.time.set_timer(self.change_hour, 50000)
+        self.change_energy = pygame.USEREVENT + 1
+        pygame.time.set_timer(self.change_energy, self.energy_change_time)
+
+    def fill_background(self):
+        for i in range(3000):
+            self.screen.fill(random.choice(((51, 51, 51), (102, 102, 102))),
+                             (random.random() * self.width, random.random() * self.height, 7, 2))
 
     def fill_tv(self):
         pygame.draw.rect(self.screen, (70, 70, 70), (850, 472, 133, 108))
@@ -261,14 +275,28 @@ class Office:
                     self.door_locked()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     self.condition = 1
+                    bg = load_image('default_office_paused.jpg')
+                    rect = bg.get_rect(topleft=(0, 0))
+                    self.screen.blit(bg, rect)
                     self.pause()
-                if event.type == self.print_message:
+                if event.type == pygame.MOUSEBUTTONDOWN and \
+                        (850 <= mouse_pos[0] <= 976 and 472 <= mouse_pos[1] <= 578):
+                    self.condition = 1
+                    pygame.mixer.music.stop()
+                    self.camera()
+                if event.type == self.change_hour:
                     if len(self.hours) > 1:
                         del self.hours[0]
                     else:
                         running = False
+                if event.type == self.change_energy:
+                    if self.energy_counter > 0:
+                        self.energy_counter -= 0.1
+                    else:
+                        running = False
 
             self.current_time()
+            self.current_energy()
             self.fill_tv()
             pygame.display.flip()
             self.clock.tick(60)
@@ -297,14 +325,23 @@ class Office:
                     self.default_office()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     self.condition = 2
+                    bg = load_image('light_office_paused.jpg')
+                    rect = bg.get_rect(topleft=(0, 0))
+                    self.screen.blit(bg, rect)
                     self.pause()
-                if event.type == self.print_message:
+                if event.type == self.change_hour:
                     if len(self.hours) > 1:
                         del self.hours[0]
                     else:
                         running = False
+                if event.type == self.change_energy:
+                    if self.energy_counter > 0:
+                        self.energy_counter -= 0.3
+                    else:
+                        running = False
 
             self.current_time()
+            self.current_energy()
             self.fill_tv()
             pygame.display.flip()
             self.clock.tick(60)
@@ -333,15 +370,106 @@ class Office:
                     self.default_office()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     self.condition = 3
+                    bg = load_image('door_locked_paused.jpg')
+                    rect = bg.get_rect(topleft=(0, 0))
+                    self.screen.blit(bg, rect)
                     self.pause()
-                if event.type == self.print_message:
+                if event.type == pygame.MOUSEBUTTONDOWN and \
+                        (850 <= mouse_pos[0] <= 976 and 472 <= mouse_pos[1] <= 578):
+                    self.condition = 3
+                    pygame.mixer.music.stop()
+                    self.camera()
+                if event.type == self.change_hour:
                     if len(self.hours) > 1:
                         del self.hours[0]
                     else:
                         running = False
+                if event.type == self.change_energy:
+                    if self.energy_counter > 0:
+                        self.energy_counter -= 0.4
+                    else:
+                        running = False
 
             self.current_time()
+            self.current_energy()
             self.fill_tv()
+            pygame.display.flip()
+            self.clock.tick(60)
+
+        pygame.quit()
+
+    def camera(self):
+
+        running = True
+
+        pygame.mixer.music.load('data/pomehi.mp3')
+        pygame.mixer.music.set_volume(0.3)
+        pygame.mixer.music.play(-1)
+
+        camera_sound = pygame.mixer.Sound('data/change_camera.mp3')
+        camera_sound.set_volume(0.3)
+
+        while running:
+
+            if self.cam_position == 1:
+                bg = load_image('cam1.jpg')
+                rect = bg.get_rect(topleft=(0, 0))
+                self.screen.blit(bg, rect)
+            if self.cam_position == 2:
+                bg = load_image('cam2.jpg')
+                rect = bg.get_rect(topleft=(0, 0))
+                self.screen.blit(bg, rect)
+
+            mouse_pos = pygame.mouse.get_pos()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                # if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    # self.condition = 4
+                    # pygame.mixer.music.stop()
+                    # self.pause()
+                if event.type == self.change_hour:
+                    if len(self.hours) > 1:
+                        del self.hours[0]
+                    else:
+                        running = False
+                if event.type == self.change_energy:
+                    if self.energy_counter > 0:
+                        if self.condition == 3:
+                            self.energy_counter -= 0.8
+                        else:
+                            self.energy_counter -= 0.3
+                    else:
+                        running = False
+                if event.type == pygame.MOUSEBUTTONDOWN and \
+                        (72 <= mouse_pos[0] <= 937 and 644 <= mouse_pos[1] <= 687):
+                    pygame.mixer.music.stop()
+                    camera_sound.play()
+                    pygame.mixer.music.load('data/vent.mp3')
+                    pygame.mixer.music.set_volume(0.2)
+                    pygame.mixer.music.play(-1)
+                    if self.condition == 1:
+                        self.default_office()
+                    if self.condition == 3:
+                        self.door_locked()
+                if event.type == pygame.MOUSEBUTTONDOWN and \
+                        (1040 <= mouse_pos[0] <= 1150 and 482 <= mouse_pos[1] <= 550):
+                    camera_sound.play()
+                    self.cam_position = 1
+                if event.type == pygame.MOUSEBUTTONDOWN and \
+                        (1161 <= mouse_pos[0] <= 1209 and 489 <= mouse_pos[1] <= 544):
+                    camera_sound.play()
+                    self.cam_position = 2
+
+            button_image = load_image('back_button.png')
+            button_image = pygame.transform.scale(button_image, (865, 45))
+            rect = button_image.get_rect(center=(505, 665))
+            self.screen.blit(button_image, rect)
+            self.current_time()
+            self.current_energy()
+            self.fill_background()
+
             pygame.display.flip()
             self.clock.tick(60)
 
@@ -350,34 +478,30 @@ class Office:
     def pause(self):
         paused = True
 
-        continue_button = Button((600, 160), (300, 100),
+        continue_button = Button((500, 250), (300, 100),
                                  'menu_button.png', 'Продолжить',
                                  'data/menubtn_sound.mp3', 'menu_button_intersected.png')
 
-        settings_button = Button((580, 280), (300, 100),
-                                 'menu_button.png', 'Настройки',
-                                 'data/menubtn_sound.mp3', 'menu_button_intersected.png')
-
-        exit_button = Button((550, 400), (300, 100),
-                             'menu_button.png', 'Выйти в главное меню',
+        exit_button = Button((495, 380), (300, 100),
+                             'menu_button.png', 'Выйти в меню',
                              'data/menubtn_sound.mp3', 'menu_button_intersected.png')
 
-        buttons = [continue_button, settings_button, exit_button]
+        buttons = [continue_button, exit_button]
+
+        pygame.mixer.music.pause()
 
         while paused:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     paused = False
                 if event.type == pygame.USEREVENT and event.button == continue_button:
-                    if self.condition == 1:
+                    pygame.mixer.music.unpause()
+                    if self.condition == 1 or self.condition == 2:
                         self.default_office()
-                    if self.condition == 2:
-                        self.light_office()
                     if self.condition == 3:
                         self.door_locked()
-                if event.type == pygame.USEREVENT and event.button == settings_button:
-                    pass
                 if event.type == pygame.USEREVENT and event.button == exit_button:
+                    pygame.time.set_timer(self.change_hour, 0)
                     MainMenu().main_window()
                 for button in buttons:
                     button.button_pressed(event)
@@ -387,6 +511,7 @@ class Office:
 
             pygame.time.delay(1)
             self.current_time()
+            self.current_energy()
             pygame.display.flip()
             self.clock.tick(60)
 
@@ -401,6 +526,14 @@ class Office:
         font = pygame.font.Font('data/MorfinSans-Regular.ttf', 45)
         text_rendered = font.render(f'Night 1', 1, (255, 0, 0))
         text_rect = text_rendered.get_rect(center=(100, 100))
+        self.screen.blit(text_rendered, text_rect)
+
+    def current_energy(self):
+        if self.energy_counter <= (self.energy_left - 1):
+            self.energy_left -= 1
+        font = pygame.font.Font('data/MorfinSans-Regular.ttf', 55)
+        text_rendered = font.render(f'{self.energy_left}%', 1, (255, 255, 255))
+        text_rect = text_rendered.get_rect(center=(1200, 50))
         self.screen.blit(text_rendered, text_rect)
 
 
