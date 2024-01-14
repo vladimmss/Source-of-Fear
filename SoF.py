@@ -5,6 +5,9 @@ import random
 # import screen_brightness_control as sbc
 
 
+CURRENT_NIGHT = 1
+
+
 def load_image(name, colorkey=None):
     fullname = os.path.join('data', name)
     if not os.path.isfile(fullname):
@@ -54,6 +57,79 @@ class Button:
             pygame.event.post(pygame.event.Event(pygame.USEREVENT, button=self))
 
 
+class Slider:
+    def __init__(self, pos: tuple, size: tuple, start_value: float, min_value: int, max_value: int):
+        self.pos = pos
+        self.size = size
+
+        self.slider_left = self.pos[0] - size[0] // 2
+        self.slider_right = self.pos[0] + size[0] // 2
+        self.slider_top = self.pos[1] - size[1] // 2
+
+        self.min = min_value
+        self.max = max_value
+
+        self.start_value = (self.slider_right - self.slider_left) * start_value
+
+        self.slider_rect = pygame.Rect(self.slider_left, self.slider_top, self.size[0], self.size[1])
+        self.button_rect = pygame.Rect(self.slider_left + self.start_value, self.slider_top + 5, 10, self.size[1] - 10)
+
+    def render(self, sc):
+        pygame.draw.rect(sc, pygame.Color('white'), self.slider_rect, width=5)
+        pygame.draw.rect(sc, pygame.Color('red'), self.button_rect)
+
+    def move(self, mouse_pos):
+        self.button_rect.centerx = mouse_pos[0]
+
+    def get_value(self):
+        value_range = self.slider_right - self.slider_left - 1
+        button_value = self.button_rect.centerx - self.slider_left
+
+        return (button_value / value_range) * (self.max - self.min) + self.min
+
+
+class Fading:
+    def __init__(self):
+        pygame.init()
+        self.size = self.width, self.height = 1920, 1080
+        self.screen = pygame.display.set_mode(self.size, pygame.FULLSCREEN)
+        pygame.display.set_caption('Source of Fear')
+
+        self.clock = pygame.time.Clock()
+
+    def fade_in(self, filename):
+        fade_in = pygame.Surface((self.width, self.height))
+        bg = load_image(filename)
+        bg = pygame.transform.scale(bg, (1280, 720))
+        rect = bg.get_rect(topleft=(0, 0))
+        fade_in.blit(bg, rect)
+        fade_in.set_alpha(255)
+        alpha = 255
+        while alpha > 0:
+            self.screen.fill((0, 0, 0))
+            alpha -= 3
+            fade_in.set_alpha(alpha)
+            self.screen.blit(fade_in, (0, 0))
+            self.clock.tick(60)
+            pygame.display.flip()
+
+    def fadeout(self, filename):
+        fadeout = pygame.Surface((self.width, self.height))
+        bg = load_image(filename)
+        bg = pygame.transform.scale(bg, (1280, 720))
+        rect = bg.get_rect(topleft=(0, 0))
+        fadeout.blit(bg, rect)
+        fadeout.set_alpha(0)
+        alpha = 0
+        while alpha < 255:
+            self.screen.fill((0, 0, 0))
+            alpha += 3
+            fadeout.set_alpha(alpha)
+            self.screen.blit(fadeout, (0, 0))
+            self.clock.tick(60)
+            pygame.display.flip()
+
+
 class MainMenu:
     def __init__(self):
         pygame.init()
@@ -61,11 +137,12 @@ class MainMenu:
         self.screen = pygame.display.set_mode(self.size, pygame.FULLSCREEN)
         pygame.display.set_caption('Source of Fear')
 
+        self.clock = pygame.time.Clock()
+
+        self.music_flag = True
         pygame.mixer.music.load('data/menu_music.mp3')
         pygame.mixer.music.set_volume(0.3)
         pygame.mixer.music.play(-1)
-
-        self.clock = pygame.time.Clock()
 
     def fill_background(self):
         for i in range(3000):
@@ -91,11 +168,16 @@ class MainMenu:
         buttons = [new_game_button, continue_menu_button, settings_menu_button, exit_menu_button]
 
         while running:
+
             self.screen.fill((0, 0, 0))
             image = pygame.transform.scale(load_image('manekens.png'), (1000, 1000))
             rect = image.get_rect(topleft=(470, 0))
             self.screen.blit(image, rect)
             self.fill_background()
+
+            if not self.music_flag:
+                pygame.mixer.music.stop()
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -139,11 +221,19 @@ class MainMenu:
     def settings_menu(self):
         running = True
 
+        music_on_button = Button((self.width // 4, 465), (200, 90),
+                                 'menu_button.png', 'Вкл',
+                                 'data/menubtn_sound.mp3', 'menu_button_intersected.png')
+
+        music_off_button = Button((self.width // 2.7, 465), (200, 90),
+                                  'menu_button.png', 'Выкл',
+                                  'data/menubtn_sound.mp3', 'menu_button_intersected.png')
+
         back_button = Button((self.width // 2 - 150, 600), (300, 100),
                              'menu_button.png', 'Назад',
                              'data/menubtn_sound.mp3', 'menu_button_intersected.png')
 
-        buttons = [back_button]
+        buttons = [music_on_button, music_off_button, back_button]
 
         while running:
             self.screen.fill((0, 0, 0))
@@ -156,6 +246,14 @@ class MainMenu:
                 if ((event.type == pygame.USEREVENT and event.button == back_button) or
                         (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE)):
                     self.main_window()
+
+                if event.type == pygame.USEREVENT and event.button == music_on_button and not self.music_flag:
+                    self.music_flag = True
+                    pygame.mixer.music.play(-1)
+
+                if event.type == pygame.USEREVENT and event.button == music_off_button:
+                    self.music_flag = False
+                    pygame.mixer.music.stop()
 
                 for button in buttons:
                     button.button_pressed(event)
@@ -191,7 +289,7 @@ class MainMenu:
                 if slider.slider_rect.collidepoint(mouse_pos) and mouse_pressed:
                     slider.move(mouse_pos)
                 slider.render(self.screen)
-                pygame.mixer.music.set_volume(round(slider.get_value()) // 100)
+                # pygame.mixer.music.set_volume(round(slider.get_value()) // 100)
                 # sbc.set_brightness(round(slider.get_value()))
 
             pygame.display.flip()
@@ -200,15 +298,18 @@ class MainMenu:
 
 
 def new_game_menu():
-    Office().default_office()
+    Fading().fade_in('fade_in_menu.jpg')
+    FirstNight().introduction()
 
 
 def continue_game_menu():
-    pass
+    if CURRENT_NIGHT == 1:
+        Fading().fade_in('fade_in_menu.jpg')
+        FirstNight().introduction()
 
 
 class Office:
-    def __init__(self):
+    def __init__(self, time_move, number_of_night):
 
         pygame.init()
         self.size = self.width, self.height = 1920, 1080
@@ -218,6 +319,12 @@ class Office:
         pygame.mixer.music.load('data/vent.mp3')
         pygame.mixer.music.set_volume(0.3)
         pygame.mixer.music.play(-1)
+
+        self.laugh_1 = pygame.mixer.Sound('data/laugh1.mp3')
+        self.laugh_1.set_volume(0.2)
+        self.laugh_2 = pygame.mixer.Sound('data/laugh2.mp3')
+        self.laugh_2.set_volume(0.1)
+        self.laughs = [self.laugh_1, self.laugh_2]
 
         self.clock = pygame.time.Clock()
         self.hours = ['12', '1', '2', '3', '4', '5']
@@ -234,6 +341,17 @@ class Office:
         pygame.time.set_timer(self.change_hour, 50000)
         self.change_energy = pygame.USEREVENT + 1
         pygame.time.set_timer(self.change_energy, self.energy_change_time)
+
+        self.mannequin = Mannequin(self.screen)
+        self.change_position = pygame.USEREVENT + 2
+        pygame.time.set_timer(self.change_position, time_move)
+        self.current_position = 1
+        self.number_of_night = number_of_night
+        self.changing_position_flag = False
+        self.hall_move_flag = 0
+
+        self.screamer = pygame.USEREVENT + 3
+        pygame.time.set_timer(self.screamer, 1500)
 
     def fill_background(self):
         for i in range(3000):
@@ -255,6 +373,10 @@ class Office:
             bg = load_image('default_office.jpg')
             rect = bg.get_rect(topleft=(0, 0))
             self.screen.blit(bg, rect)
+
+            if self.hall_move_flag:
+                self.mannequin_moving()
+                self.hall_move_flag = 0
 
             light_on_sound = pygame.mixer.Sound('data/light_on.mp3')
             light_on_sound.set_volume(0.7)
@@ -288,16 +410,28 @@ class Office:
                     if len(self.hours) > 1:
                         del self.hours[0]
                     else:
-                        running = False
+                        winning(self.number_of_night)
                 if event.type == self.change_energy:
                     if self.energy_counter > 0:
                         self.energy_counter -= 0.1
                     else:
-                        running = False
+                        self.current_position = 7
+                if event.type == self.change_position:
+                    self.mannequin_moving()
 
             self.current_time()
             self.current_energy()
             self.fill_tv()
+            if self.current_position == 7:
+                pygame.mixer.music.stop()
+                screamer_sound = pygame.mixer.Sound('data/screamer_sound.mp3')
+                screamer_sound.set_volume(0.3)
+                self.mannequin.mannequin_pos_office()
+                screamer_sound.play()
+                for event in pygame.event.get():
+                    if event.type == self.screamer:
+                        screamer_sound.stop()
+                        losing()
             pygame.display.flip()
             self.clock.tick(60)
 
@@ -311,6 +445,12 @@ class Office:
             bg = load_image('light_office.jpg')
             rect = bg.get_rect(topleft=(0, 0))
             self.screen.blit(bg, rect)
+            if self.current_position == 3:
+                self.mannequin.pos1_hall()
+            if self.current_position == 4:
+                self.mannequin.pos2_hall()
+            if self.current_position == 7:
+                self.default_office()
 
             light_off_sound = pygame.mixer.Sound('data/light_off.mp3')
             light_off_sound.set_volume(0.3)
@@ -333,12 +473,16 @@ class Office:
                     if len(self.hours) > 1:
                         del self.hours[0]
                     else:
-                        running = False
+                        winning(self.number_of_night)
                 if event.type == self.change_energy:
                     if self.energy_counter > 0:
                         self.energy_counter -= 0.3
                     else:
-                        running = False
+                        self.current_position = 7
+                if event.type == self.change_position:
+                    if self.current_position == 2 or self.current_position == 3:
+                        self.hall_move_flag = 1
+                        self.default_office()
 
             self.current_time()
             self.current_energy()
@@ -383,12 +527,14 @@ class Office:
                     if len(self.hours) > 1:
                         del self.hours[0]
                     else:
-                        running = False
+                        winning(self.number_of_night)
                 if event.type == self.change_energy:
                     if self.energy_counter > 0:
                         self.energy_counter -= 0.4
                     else:
-                        running = False
+                        self.current_position = 7
+                if event.type == self.change_position:
+                    self.mannequin_moving()
 
             self.current_time()
             self.current_energy()
@@ -406,6 +552,8 @@ class Office:
         pygame.mixer.music.set_volume(0.3)
         pygame.mixer.music.play(-1)
 
+        x = random.randrange(1, 10)
+
         camera_sound = pygame.mixer.Sound('data/change_camera.mp3')
         camera_sound.set_volume(0.3)
 
@@ -415,25 +563,31 @@ class Office:
                 bg = load_image('cam1.jpg')
                 rect = bg.get_rect(topleft=(0, 0))
                 self.screen.blit(bg, rect)
+                if self.current_position == 1:
+                    self.mannequin.pos1_cam1()
+                if self.current_position == 2:
+                    self.mannequin.pos2_cam1()
             if self.cam_position == 2:
                 bg = load_image('cam2.jpg')
                 rect = bg.get_rect(topleft=(0, 0))
                 self.screen.blit(bg, rect)
+                if self.current_position == 5:
+                    self.mannequin.pos1_cam2()
+                if self.current_position == 6:
+                    self.mannequin.pos2_cam2()
+            if self.current_position == 7:
+                self.default_office()
 
             mouse_pos = pygame.mouse.get_pos()
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                # if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    # self.condition = 4
-                    # pygame.mixer.music.stop()
-                    # self.pause()
                 if event.type == self.change_hour:
                     if len(self.hours) > 1:
                         del self.hours[0]
                     else:
-                        running = False
+                        winning(self.number_of_night)
                 if event.type == self.change_energy:
                     if self.energy_counter > 0:
                         if self.condition == 3:
@@ -441,9 +595,10 @@ class Office:
                         else:
                             self.energy_counter -= 0.3
                     else:
-                        running = False
-                if event.type == pygame.MOUSEBUTTONDOWN and \
-                        (72 <= mouse_pos[0] <= 937 and 644 <= mouse_pos[1] <= 687):
+                        self.current_position = 7
+                if (event.type == pygame.MOUSEBUTTONDOWN and
+                    (72 <= mouse_pos[0] <= 937 and 644 <= mouse_pos[1] <= 687)) or \
+                        (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     pygame.mixer.music.stop()
                     camera_sound.play()
                     pygame.mixer.music.load('data/vent.mp3')
@@ -461,6 +616,12 @@ class Office:
                         (1161 <= mouse_pos[0] <= 1209 and 489 <= mouse_pos[1] <= 544):
                     camera_sound.play()
                     self.cam_position = 2
+                if event.type == self.change_position:
+                    self.mannequin_moving()
+
+            if x == 9:
+                random.choice(self.laughs).play()
+                x = 0
 
             button_image = load_image('back_button.png')
             button_image = pygame.transform.scale(button_image, (865, 45))
@@ -524,7 +685,7 @@ class Office:
         self.screen.blit(text_rendered, text_rect)
 
         font = pygame.font.Font('data/MorfinSans-Regular.ttf', 45)
-        text_rendered = font.render(f'Night 1', 1, (255, 0, 0))
+        text_rendered = font.render(f'Ночь {str(self.number_of_night)}', 1, (255, 0, 0))
         text_rect = text_rendered.get_rect(center=(100, 100))
         self.screen.blit(text_rendered, text_rect)
 
@@ -536,36 +697,186 @@ class Office:
         text_rect = text_rendered.get_rect(center=(1200, 50))
         self.screen.blit(text_rendered, text_rect)
 
+    def mannequin_moving(self):
+        if self.number_of_night == 1:
+            self.changing_position_flag = True
+            if self.current_position == 1 and self.changing_position_flag:
+                self.current_position = 2
+                self.changing_position_flag = False
+            if self.current_position == 2 and self.changing_position_flag:
+                self.current_position = 3
+                self.changing_position_flag = False
+            if self.current_position == 3 and self.changing_position_flag:
+                self.current_position = 4
+                self.changing_position_flag = False
+            if self.current_position == 4 and self.changing_position_flag:
+                if self.condition == 3:
+                    self.current_position = 5
+                    self.changing_position_flag = False
+                if self.condition == 1 or self.condition == 2:
+                    self.current_position = 7
+                    self.changing_position_flag = False
+            if self.current_position == 5 and self.changing_position_flag:
+                self.current_position = 6
+                self.changing_position_flag = False
+            if self.current_position == 6 and self.changing_position_flag:
+                self.current_position = 2
+                self.changing_position_flag = False
 
-class Slider:
-    def __init__(self, pos: tuple, size: tuple, start_value: float, min_value: int, max_value: int):
-        self.pos = pos
-        self.size = size
 
-        self.slider_left = self.pos[0] - size[0] // 2
-        self.slider_right = self.pos[0] + size[0] // 2
-        self.slider_top = self.pos[1] - size[1] // 2
+class Mannequin(pygame.sprite.Sprite):
+    def __init__(self, sc):
+        pygame.sprite.Sprite.__init__(self)
+        self.screen = sc
+        self.pos1, self.size1 = (600, 380), (100, 250)
+        self.pos2, self.size2 = (300, 380), (230, 320)
+        self.pos3, self.size3 = (500, 350), (150, 250)
+        self.pos4, self.size4 = (570, 320), (750, 700)
+        self.pos5, self.size5 = (570, 250), (80, 110)
+        self.pos6, self.size6 = (650, 330), (250, 380)
+        self.pos7, self.size7 = (630, 400), (900, 950)
 
-        self.min = min_value
-        self.max = max_value
+    def pos1_cam1(self):
+        image = load_image('mannequin_pos1.png')
+        image = pygame.transform.scale(image, self.size1)
+        rect = image.get_rect(center=self.pos1)
+        self.screen.blit(image, rect)
 
-        self.start_value = (self.slider_right - self.slider_left) * start_value
+    def pos2_cam1(self):
+        image = load_image('mannequin_pos2.png')
+        image = pygame.transform.scale(image, self.size2)
+        rect = image.get_rect(center=self.pos2)
+        self.screen.blit(image, rect)
 
-        self.slider_rect = pygame.Rect(self.slider_left, self.slider_top, self.size[0], self.size[1])
-        self.button_rect = pygame.Rect(self.slider_left + self.start_value, self.slider_top + 5, 10, self.size[1] - 10)
+    def pos1_cam2(self):
+        image = load_image('mannequin_pos3.png')
+        image = pygame.transform.scale(image, self.size3)
+        rect = image.get_rect(center=self.pos3)
+        self.screen.blit(image, rect)
 
-    def render(self, sc):
-        pygame.draw.rect(sc, pygame.Color('white'), self.slider_rect, width=5)
-        pygame.draw.rect(sc, pygame.Color('red'), self.button_rect)
+    def pos2_cam2(self):
+        image = load_image('mannequin_pos4.png')
+        image = pygame.transform.scale(image, self.size4)
+        rect = image.get_rect(center=self.pos4)
+        self.screen.blit(image, rect)
 
-    def move(self, mouse_pos):
-        self.button_rect.centerx = mouse_pos[0]
+    def pos1_hall(self):
+        image = load_image('mannequin_pos5.png')
+        image = pygame.transform.scale(image, self.size5)
+        rect = image.get_rect(center=self.pos5)
+        self.screen.blit(image, rect)
 
-    def get_value(self):
-        value_range = self.slider_right - self.slider_left - 1
-        button_value = self.button_rect.centerx - self.slider_left
+    def pos2_hall(self):
+        image = load_image('mannequin_pos6.png')
+        image = pygame.transform.scale(image, self.size6)
+        rect = image.get_rect(center=self.pos6)
+        self.screen.blit(image, rect)
 
-        return (button_value / value_range) * (self.max - self.min) + self.min
+    def mannequin_pos_office(self):
+        image = load_image('mannequin_pos_office.png')
+        image = pygame.transform.scale(image, self.size7)
+        rect = image.get_rect(center=self.pos7)
+        self.screen.blit(image, rect)
+
+
+class FirstNight:
+    def __init__(self):
+
+        pygame.init()
+        self.size = self.width, self.height = 1920, 1080
+        self.screen = pygame.display.set_mode(self.size, pygame.FULLSCREEN)
+        pygame.display.set_caption('Source of Fear')
+
+        self.clock = pygame.time.Clock()
+
+    def introduction(self):
+        running = True
+
+        while running:
+            self.screen.fill((0, 0, 0))
+            click_sound = pygame.mixer.Sound('data/menubtn_sound.mp3')
+            click_sound.set_volume(0.3)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                    click_sound.play()
+                    Fading().fade_in('first_night_fade.jpg')
+                    self.playing_process()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    click_sound.play()
+                    Fading().fade_in('first_night_fade.jpg')
+                    MainMenu().main_window()
+
+            font1 = pygame.font.Font('data/MorfinSans-Regular.ttf', 150)
+            text_rendered = font1.render(f'Первая ночь', 1, pygame.Color('red'))
+            text_rect = text_rendered.get_rect(center=((self.width // 2 - text_rendered.get_width() // 2 + 20), 300))
+            self.screen.blit(text_rendered, text_rect)
+
+            font2 = pygame.font.Font('data/MorfinSans-Regular.ttf', 70)
+            text_rendered = font2.render(f'Нажмите Enter, чтобы начать', 1, pygame.Color('white'))
+            text_rect = text_rendered.get_rect(center=((self.width // 2 - text_rendered.get_width() // 2 + 70), 450))
+            self.screen.blit(text_rendered, text_rect)
+
+            self.clock.tick(60)
+            pygame.display.flip()
+        pygame.quit()
+
+    def playing_process(self):
+        running = True
+
+        while running:
+            Office(20000, 1).default_office()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+
+            self.clock.tick(60)
+            pygame.display.flip()
+        pygame.quit()
+
+
+def winning(night_completed):
+    global CURRENT_NIGHT
+    CURRENT_NIGHT = night_completed + 1
+
+
+def losing():
+    pygame.init()
+    size = width, height = 1920, 1080
+    screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
+    pygame.display.set_caption('Source of Fear')
+
+    pygame.mixer.music.load('data/game_over_sound.mp3')
+    pygame.mixer.music.set_volume(0.3)
+    pygame.mixer.music.play(-1)
+
+    game_over_screen = pygame.USEREVENT + 4
+    pygame.time.set_timer(game_over_screen, 7000)
+    clock = pygame.time.Clock()
+
+    running = True
+    while running:
+        screen.fill((0, 0, 0))
+        for i in range(3000):
+            screen.fill(random.choice(((51, 51, 51), (102, 102, 102))),
+                        (random.random() * width, random.random() * height, 7, 2))
+
+        font = pygame.font.Font('data/MorfinSans-Regular.ttf', 200)
+        text_rendered = font.render('GAME OVER', 1, (255, 0, 0))
+        text_rect = text_rendered.get_rect(center=((width // 2 - text_rendered.get_width() // 2 + 90),
+                                                   (height // 2 - text_rendered.get_height() // 2 - 70)))
+        screen.blit(text_rendered, text_rect)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == game_over_screen:
+                pygame.mixer.music.stop()
+                MainMenu().main_window()
+
+        clock.tick(60)
+        pygame.display.flip()
+    pygame.quit()
 
 
 if __name__ == '__main__':
