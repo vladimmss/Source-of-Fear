@@ -302,6 +302,10 @@ def new_game_menu():
     FirstNight().introduction()
 
 
+def puppet_checkout(bg):
+    Fading().fade_in(bg)
+
+
 def continue_game_menu():
     if CURRENT_NIGHT == 1:
         Fading().fade_in('fade_in_menu.jpg')
@@ -333,9 +337,13 @@ class Office:
         self.energy_left = 100
         self.change_energy_point = 0
         self.energy_change_time = 1000
+        self.puppet_change_time = 2000
+        self.puppet_time = 100
+        self.puppet_left = 100
 
         self.condition = 0
         self.cam_position = 1
+        self.time_move = time_move
 
         self.change_hour = pygame.USEREVENT + 0
         pygame.time.set_timer(self.change_hour, 50000)
@@ -344,7 +352,7 @@ class Office:
 
         self.mannequin = Mannequin(self.screen)
         self.change_position = pygame.USEREVENT + 2
-        pygame.time.set_timer(self.change_position, time_move)
+        pygame.time.set_timer(self.change_position, self.time_move)
         self.current_position = 1
         self.number_of_night = number_of_night
         self.changing_position_flag = False
@@ -352,6 +360,9 @@ class Office:
 
         self.screamer = pygame.USEREVENT + 3
         pygame.time.set_timer(self.screamer, 1500)
+
+        self.puppet_change = pygame.USEREVENT + 4
+        pygame.time.set_timer(self.puppet_change, self.puppet_change_time)
 
     def fill_background(self):
         for i in range(3000):
@@ -367,6 +378,11 @@ class Office:
 
     def default_office(self):
         running = True
+        run_sound = pygame.mixer.Sound('data/run_to_puppet.mp3')
+        run_sound.set_volume(0.3)
+        raw_array = run_sound.get_raw()
+        raw_array = raw_array[100000:270000]
+        run_sound = pygame.mixer.Sound(buffer=raw_array)
 
         while running:
 
@@ -407,7 +423,7 @@ class Office:
                     pygame.mixer.music.stop()
                     self.camera()
                 if event.type == self.change_hour:
-                    if len(self.hours) > 1:
+                    if len(self.hours) != 1:
                         del self.hours[0]
                     else:
                         winning(self.number_of_night)
@@ -416,8 +432,21 @@ class Office:
                         self.energy_counter -= 0.1
                     else:
                         self.current_position = 7
+                if event.type == self.puppet_change:
+                    if self.puppet_time > 0:
+                        self.puppet_time -= 2
+                    else:
+                        self.current_position = 7
                 if event.type == self.change_position:
+                    self.time_move = random.randrange(7000, 20000)
                     self.mannequin_moving()
+                    print(self.time_move)
+                if event.type == pygame.MOUSEBUTTONDOWN and \
+                        (1150 <= mouse_pos[0] <= 1400 and 150 <= mouse_pos[1] <= 678):
+                    self.condition = 1
+                    run_sound.play()
+                    puppet_checkout('default_office.jpg')
+                    self.puppet()
 
             self.current_time()
             self.current_energy()
@@ -470,7 +499,7 @@ class Office:
                     self.screen.blit(bg, rect)
                     self.pause()
                 if event.type == self.change_hour:
-                    if len(self.hours) > 1:
+                    if len(self.hours) != 1:
                         del self.hours[0]
                     else:
                         winning(self.number_of_night)
@@ -479,7 +508,13 @@ class Office:
                         self.energy_counter -= 0.3
                     else:
                         self.current_position = 7
+                if event.type == self.puppet_change:
+                    if self.puppet_time > 0:
+                        self.puppet_time -= 2
+                    else:
+                        self.current_position = 7
                 if event.type == self.change_position:
+                    self.time_move = random.randrange(7000, 20000)
                     if self.current_position == 2 or self.current_position == 3:
                         self.hall_move_flag = 1
                         self.default_office()
@@ -487,6 +522,16 @@ class Office:
             self.current_time()
             self.current_energy()
             self.fill_tv()
+            if self.current_position == 7:
+                pygame.mixer.music.stop()
+                screamer_sound = pygame.mixer.Sound('data/screamer_sound.mp3')
+                screamer_sound.set_volume(0.3)
+                self.mannequin.mannequin_pos_office()
+                screamer_sound.play()
+                for event in pygame.event.get():
+                    if event.type == self.screamer:
+                        screamer_sound.stop()
+                        losing()
             pygame.display.flip()
             self.clock.tick(60)
 
@@ -494,6 +539,11 @@ class Office:
 
     def door_locked(self):
         running = True
+        run_sound = pygame.mixer.Sound('data/run_to_puppet.mp3')
+        run_sound.set_volume(0.3)
+        raw_array = run_sound.get_raw()
+        raw_array = raw_array[100000:270000]
+        run_sound = pygame.mixer.Sound(buffer=raw_array)
 
         while running:
 
@@ -524,17 +574,29 @@ class Office:
                     pygame.mixer.music.stop()
                     self.camera()
                 if event.type == self.change_hour:
-                    if len(self.hours) > 1:
+                    if len(self.hours) != 1:
                         del self.hours[0]
                     else:
                         winning(self.number_of_night)
+                if event.type == self.puppet_change:
+                    if self.puppet_time > 0:
+                        self.puppet_time -= 2
+                    else:
+                        self.current_position = 7
                 if event.type == self.change_energy:
                     if self.energy_counter > 0:
                         self.energy_counter -= 0.4
                     else:
                         self.current_position = 7
                 if event.type == self.change_position:
+                    self.time_move = random.randrange(7000, 20000)
                     self.mannequin_moving()
+                if event.type == pygame.MOUSEBUTTONDOWN and \
+                        (1150 <= mouse_pos[0] <= 1400 and 150 <= mouse_pos[1] <= 678):
+                    self.condition = 3
+                    run_sound.play()
+                    puppet_checkout('door_locked.jpg')
+                    self.puppet()
 
             self.current_time()
             self.current_energy()
@@ -558,6 +620,9 @@ class Office:
         camera_sound.set_volume(0.3)
 
         while running:
+            if self.hall_move_flag:
+                self.mannequin_moving()
+                self.hall_move_flag = 0
 
             if self.cam_position == 1:
                 bg = load_image('cam1.jpg')
@@ -584,18 +649,23 @@ class Office:
                 if event.type == pygame.QUIT:
                     running = False
                 if event.type == self.change_hour:
-                    if len(self.hours) > 1:
+                    if len(self.hours) != 1:
                         del self.hours[0]
                     else:
                         winning(self.number_of_night)
                 if event.type == self.change_energy:
                     if self.energy_counter > 0:
                         if self.condition == 3:
-                            self.energy_counter -= 0.8
+                            self.energy_counter -= 0.5
                         else:
                             self.energy_counter -= 0.3
                     else:
                         self.current_position = 7
+                    if event.type == self.puppet_change:
+                        if self.puppet_time > 0:
+                            self.puppet_time -= 2
+                        else:
+                            self.current_position = 7
                 if (event.type == pygame.MOUSEBUTTONDOWN and
                     (72 <= mouse_pos[0] <= 937 and 644 <= mouse_pos[1] <= 687)) or \
                         (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
@@ -617,6 +687,7 @@ class Office:
                     camera_sound.play()
                     self.cam_position = 2
                 if event.type == self.change_position:
+                    self.time_move = random.randrange(7000, 20000)
                     self.mannequin_moving()
 
             if x == 9:
@@ -630,11 +701,144 @@ class Office:
             self.current_time()
             self.current_energy()
             self.fill_background()
+            if self.current_position == 7:
+                pygame.mixer.music.stop()
+                screamer_sound = pygame.mixer.Sound('data/screamer_sound.mp3')
+                screamer_sound.set_volume(0.3)
+                self.mannequin.mannequin_pos_office()
+                screamer_sound.play()
+                for event in pygame.event.get():
+                    if event.type == self.screamer:
+                        screamer_sound.stop()
+                        losing()
 
             pygame.display.flip()
             self.clock.tick(60)
 
         pygame.quit()
+
+    def puppet(self):
+        running = True
+        self.is_charge = False
+        run_sound = pygame.mixer.Sound('data/run_to_puppet.mp3')
+        run_sound.set_volume(0.3)
+        raw_array = run_sound.get_raw()
+        raw_array = raw_array[100000:270000]
+        run_sound = pygame.mixer.Sound(buffer=raw_array)
+
+        pygame.mixer.music.load('data/puppet_theme.mp3')
+        pygame.mixer.music.set_volume(0.3)
+        pygame.mixer.music.play(-1)
+
+        while running:
+            mouse_pos = pygame.mouse.get_pos()
+            bg = load_image('cam3.jpg')
+            rect = bg.get_rect(topleft=(0, 0))
+            self.screen.blit(bg, rect)
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == self.change_hour:
+                    if len(self.hours) != 1:
+                        del self.hours[0]
+                    else:
+                        winning(self.number_of_night)
+                if event.type == self.change_energy:
+                    if self.is_charge and self.puppet_time < 100:
+                        self.puppet_time += 5
+                    if self.energy_counter > 0:
+                        self.energy_counter -= 0.2
+                    else:
+                        self.current_position = 7
+                if event.type == self.puppet_change and not self.is_charge:
+                    if self.puppet_time > 0:
+                        self.puppet_time -= 2
+                        print(self.puppet_left)
+                    else:
+                        self.current_position = 7
+                if (event.type == pygame.MOUSEBUTTONDOWN and
+                    (72 <= mouse_pos[0] <= 937 and 644 <= mouse_pos[1] <= 687)) or \
+                        (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                    run_sound.play()
+                    puppet_checkout('cam3.jpg')
+                    pygame.mixer.music.load('data/vent.mp3')
+                    pygame.mixer.music.set_volume(0.2)
+                    pygame.mixer.music.play(-1)
+                    if self.condition == 1:
+                        self.default_office()
+                    if self.condition == 3:
+                        self.door_locked()
+                if event.type == self.change_position:
+                    self.time_move = random.randrange(7000, 20000)
+                    self.mannequin_moving()
+                if event.type == pygame.MOUSEBUTTONDOWN and \
+                        (1115 <= mouse_pos[0] <= 1370 and 380 <= mouse_pos[1] <= 835):
+                    self.is_charge = True
+                if event.type == pygame.MOUSEBUTTONUP or \
+                        not (1115 <= mouse_pos[0] <= 1370 and 580 <= mouse_pos[1] <= 835):
+                    self.is_charge = False
+
+            button_image = load_image('back_button.png')
+            button_image = pygame.transform.scale(button_image, (865, 45))
+            rect = button_image.get_rect(center=(505, 665))
+            self.screen.blit(button_image, rect)
+
+            button_image = load_image('puppet_button.png')
+            button_image = pygame.transform.scale(button_image, (255, 255))
+            rect = button_image.get_rect(center=(1115, 548))
+            self.screen.blit(button_image, rect)
+
+            font = pygame.font.Font('data/MorfinSans-Regular.ttf', 50)
+            text_rendered = font.render(f'Завести', 1, (255, 255, 255))
+            text_rect = text_rendered.get_rect(center=(1115, 520))
+            self.screen.blit(text_rendered, text_rect)
+
+            font = pygame.font.Font('data/MorfinSans-Regular.ttf', 50)
+            text_rendered = font.render(f'шкатулку', 1, (255, 255, 255))
+            text_rect = text_rendered.get_rect(center=(1115, 580))
+            self.screen.blit(text_rendered, text_rect)
+
+            self.current_time()
+            self.current_energy()
+            self.current_puppet()
+            if self.current_position == 7:
+                pygame.mixer.music.stop()
+                screamer_sound = pygame.mixer.Sound('data/screamer_sound.mp3')
+                screamer_sound.set_volume(0.3)
+                self.mannequin.mannequin_pos_office()
+                screamer_sound.play()
+                for event in pygame.event.get():
+                    if event.type == self.screamer:
+                        screamer_sound.stop()
+                        losing()
+            self.clock.tick(60)
+            pygame.display.flip()
+
+        pygame.quit()
+
+    def plus_puppet(self):
+        running = True
+        mouse_pos = pygame.mouse.get_pos()
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.MOUSEBUTTONUP or \
+                        not (1115 <= mouse_pos[0] <= 1370 and 580 <= mouse_pos[1] <= 835):
+                    self.is_charge = False
+                if event.type == self.change_energy:
+                    self.puppet_time += 5
+                    if self.energy_counter > 0:
+                        self.energy_counter -= 0.2
+                    else:
+                        self.current_position = 7
+                self.current_time()
+                self.current_energy()
+                self.clock.tick(60)
+                pygame.display.flip()
+
+            pygame.quit()
 
     def pause(self):
         paused = True
@@ -673,8 +877,8 @@ class Office:
             pygame.time.delay(1)
             self.current_time()
             self.current_energy()
-            pygame.display.flip()
             self.clock.tick(60)
+            pygame.display.flip()
 
         pygame.quit()
 
@@ -695,6 +899,14 @@ class Office:
         font = pygame.font.Font('data/MorfinSans-Regular.ttf', 55)
         text_rendered = font.render(f'{self.energy_left}%', 1, (255, 255, 255))
         text_rect = text_rendered.get_rect(center=(1200, 50))
+        self.screen.blit(text_rendered, text_rect)
+
+    def current_puppet(self):
+        if self.puppet_time <= (self.puppet_left - 1):
+            self.puppet_left -= 1
+        font = pygame.font.Font('data/MorfinSans-Regular.ttf', 60)
+        text_rendered = font.render(f'{self.puppet_left} to die', 1, (255, 0, 0))
+        text_rect = text_rendered.get_rect(center=(1120, 400))
         self.screen.blit(text_rendered, text_rect)
 
     def mannequin_moving(self):
@@ -826,7 +1038,7 @@ class FirstNight:
         running = True
 
         while running:
-            Office(20000, 1).default_office()
+            Office(random.randrange(10000, 20000), 1).default_office()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -839,6 +1051,7 @@ class FirstNight:
 def winning(night_completed):
     global CURRENT_NIGHT
     CURRENT_NIGHT = night_completed + 1
+    MainMenu().main_window()
 
 
 def losing():
